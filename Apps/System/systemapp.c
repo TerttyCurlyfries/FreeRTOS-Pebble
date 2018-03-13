@@ -13,9 +13,15 @@
 #include "platform_res.h"
 
 extern void flash_dump(void);
+extern const char git_version[];
 
 static Window *s_main_window;
 static Menu *s_menu;
+
+static Window *s_about_window;
+static TextLayer *s_versionTitle_text, *s_version_text, *s_discordTitle_text, *s_discord_text;
+static BitmapLayer *s_rebbleLogoBackground_layer, *s_toMoonBackground_layer;
+static GBitmap *s_rebbleLogo_bitmap, *s_toMoon_bitmap;
 
 StatusBarLayer *status_bar;
 
@@ -55,6 +61,12 @@ static MenuItems* run_test_item_selected(const MenuItem *item)
 static MenuItems* notification_item_selected(const MenuItem *item)
 {
     appmanager_app_start("Notification");
+    return NULL;
+}
+
+static MenuItems* about_item_selected(const MenuItem *item)
+{
+    window_stack_push(s_about_window, false);
     return NULL;
 }
 
@@ -105,7 +117,7 @@ static void systemapp_window_load(Window *window)
     menu_items_add(items, MenuItem("Settings", "Config", RESOURCE_ID_SPANNER, settings_item_selected));
     menu_items_add(items, MenuItem("Tests", NULL, RESOURCE_ID_CLOCK, run_test_item_selected));
     menu_items_add(items, MenuItem("Notifications", NULL, RESOURCE_ID_SPEECH_BUBBLE, notification_item_selected));
-    menu_items_add(items, MenuItem("RebbleOS", "... v0.0.0.2", RESOURCE_ID_SPEECH_BUBBLE, NULL));
+    menu_items_add(items, MenuItem("RebbleOS", "... v0.0.0.2", RESOURCE_ID_SPEECH_BUBBLE, about_item_selected));
     menu_set_items(s_menu, items);
 
 #ifdef PBL_RECT
@@ -122,6 +134,70 @@ static void systemapp_window_unload(Window *window)
     menu_destroy(s_menu);
 }
 
+static void about_window_load(Window *window)
+{
+    //window_set_background_color(s_about_window, GColorWhite);
+    
+    Layer *window_layer = window_get_root_layer(s_about_window);
+    GRect bounds = layer_get_bounds(window_layer);
+    
+    status_bar = status_bar_layer_create();
+    layer_add_child(window_layer, status_bar_layer_get_layer(status_bar));
+    status_bar_layer_set_separator_mode(status_bar, StatusBarLayerSeparatorModeDotted);
+    status_bar_layer_set_colors(status_bar, GColorRed, GColorWhite);
+    status_bar_layer_set_text(status_bar, "About RebbleOS");
+
+    s_rebbleLogo_bitmap = gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_DARK);
+    s_rebbleLogoBackground_layer = bitmap_layer_create(GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
+    bitmap_layer_set_bitmap(s_rebbleLogoBackground_layer, s_rebbleLogo_bitmap);
+    layer_add_child(window_layer, bitmap_layer_get_layer(s_rebbleLogoBackground_layer));
+    
+    s_toMoon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TO_MOON);
+    s_toMoonBackground_layer = bitmap_layer_create(GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
+    bitmap_layer_set_bitmap(s_toMoonBackground_layer, s_toMoon_bitmap);
+    layer_add_child(window_layer, bitmap_layer_get_layer(s_toMoonBackground_layer));
+    
+    s_versionTitle_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)-10, 140, 20));
+    text_layer_set_text_color(s_versionTitle_text, GColorBlack);
+  	text_layer_set_background_color(s_versionTitle_text, GColorClear);
+ 	text_layer_set_text(s_versionTitle_text, "Version:");
+    text_layer_set_font(s_versionTitle_text, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text_alignment(s_versionTitle_text, GTextAlignmentCenter);
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_versionTitle_text));
+    
+    s_version_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+5, 140, 20));
+    text_layer_set_text_color(s_version_text, GColorBlack);
+  	text_layer_set_background_color(s_version_text, GColorClear);
+ 	text_layer_set_text(s_version_text, git_version);
+    text_layer_set_font(s_version_text, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+	text_layer_set_text_alignment(s_version_text, GTextAlignmentCenter);
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_version_text));
+    
+    s_discordTitle_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+20, 140, 20));
+    text_layer_set_text_color(s_discordTitle_text, GColorBlack);
+  	text_layer_set_background_color(s_discordTitle_text, GColorClear);
+ 	text_layer_set_text(s_discordTitle_text, "Join us!");
+    text_layer_set_font(s_discordTitle_text, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+	text_layer_set_text_alignment(s_discordTitle_text, GTextAlignmentCenter);
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_discordTitle_text));
+    
+    s_discord_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+35, 140, 20));
+    text_layer_set_text_color(s_discord_text, GColorBlack);
+  	text_layer_set_background_color(s_discord_text, GColorClear);
+ 	text_layer_set_text(s_discord_text, "discord.gg/aRUAYFN");
+    text_layer_set_font(s_discord_text, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+	text_layer_set_text_alignment(s_discord_text, GTextAlignmentCenter);
+	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_discord_text));
+}
+
+static void about_window_unload(Window *window)
+{
+    gbitmap_destroy(s_rebbleLogo_bitmap);
+    bitmap_layer_destroy(s_rebbleLogoBackground_layer);
+    text_layer_destroy(s_version_text);
+    text_layer_destroy(s_discord_text);
+}
+
 void systemapp_init(void)
 {
     s_main_window = window_create();
@@ -131,12 +207,20 @@ void systemapp_init(void)
         .unload = systemapp_window_unload,
     });
 
+    s_about_window = window_create();
+    
+    window_set_window_handlers(s_about_window, (WindowHandlers) {
+        .load = about_window_load,
+        .unload = about_window_unload,
+    });
+    
     window_stack_push(s_main_window, true);
 }
 
 void systemapp_deinit(void)
 {
     window_destroy(s_main_window);
+    window_destroy(s_about_window);
 }
 
 void systemapp_main(void)
