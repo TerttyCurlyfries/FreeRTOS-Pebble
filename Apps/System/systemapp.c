@@ -64,6 +64,12 @@ static MenuItems* notification_item_selected(const MenuItem *item)
     return NULL;
 }
 
+static MenuItems* widgets_item_selected(const MenuItem *item)
+{
+    appmanager_app_start("Widgets");
+    return NULL;
+}
+
 static MenuItems* about_item_selected(const MenuItem *item)
 {
     window_stack_push(s_about_window, false);
@@ -115,6 +121,7 @@ static void systemapp_window_load(Window *window)
     MenuItems *items = menu_items_create(5);
     menu_items_add(items, MenuItem("Watchfaces", "All your faces", RESOURCE_ID_CLOCK, watch_list_item_selected));
     menu_items_add(items, MenuItem("Settings", "Config", RESOURCE_ID_SPANNER, settings_item_selected));
+	menu_items_add(items, MenuItem("Widgets", "Preview the Future", RESOURCE_ID_SPANNER, widgets_item_selected));
     menu_items_add(items, MenuItem("Tests", NULL, RESOURCE_ID_CLOCK, run_test_item_selected));
     menu_items_add(items, MenuItem("Notifications", NULL, RESOURCE_ID_SPEECH_BUBBLE, notification_item_selected));
     menu_items_add(items, MenuItem("RebbleOS", "... v0.0.0.2", RESOURCE_ID_SPEECH_BUBBLE, about_item_selected));
