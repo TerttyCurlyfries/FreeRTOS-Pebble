@@ -19,9 +19,9 @@ static Window *s_main_window;
 static Menu *s_menu;
 
 static Window *s_about_window;
-static TextLayer *s_versionTitle_text, *s_version_text, *s_discordTitle_text, *s_discord_text;
-static BitmapLayer *s_rebbleLogoBackground_layer, *s_toMoonBackground_layer;
-static GBitmap *s_rebbleLogo_bitmap, *s_toMoon_bitmap;
+static Layer *s_aboutCanvas_layer;
+static ScrollLayer *s_about_scroll;
+static void about_update_proc(Layer *layer, GContext *nGContext);
 
 StatusBarLayer *status_bar;
 
@@ -140,62 +140,51 @@ static void about_window_load(Window *window)
     
     Layer *window_layer = window_get_root_layer(s_about_window);
     GRect bounds = layer_get_bounds(window_layer);
+	
+	s_about_scroll = scroll_layer_create(bounds);
+    scroll_layer_set_click_config_onto_window(s_about_scroll, window);
     
     status_bar = status_bar_layer_create();
     layer_add_child(window_layer, status_bar_layer_get_layer(status_bar));
     status_bar_layer_set_separator_mode(status_bar, StatusBarLayerSeparatorModeDotted);
     status_bar_layer_set_colors(status_bar, GColorRed, GColorWhite);
     status_bar_layer_set_text(status_bar, "About RebbleOS");
+	
+	s_aboutCanvas_layer = layer_create(bounds);
+    layer_set_update_proc(s_aboutCanvas_layer, about_update_proc);
+	scroll_layer_add_child(s_about_scroll, s_aboutCanvas_layer);	
+	layer_mark_dirty(s_aboutCanvas_layer);
+	
+	layer_add_child(window_layer, scroll_layer_get_layer(s_about_scroll));
+   
+}
 
-    s_rebbleLogo_bitmap = gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_DARK);
-    s_rebbleLogoBackground_layer = bitmap_layer_create(GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
-    bitmap_layer_set_bitmap(s_rebbleLogoBackground_layer, s_rebbleLogo_bitmap);
-    layer_add_child(window_layer, bitmap_layer_get_layer(s_rebbleLogoBackground_layer));
-    
-    s_toMoon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TO_MOON);
-    s_toMoonBackground_layer = bitmap_layer_create(GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
-    bitmap_layer_set_bitmap(s_toMoonBackground_layer, s_toMoon_bitmap);
-    layer_add_child(window_layer, bitmap_layer_get_layer(s_toMoonBackground_layer));
-    
-    s_versionTitle_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)-10, 140, 20));
-    text_layer_set_text_color(s_versionTitle_text, GColorBlack);
-  	text_layer_set_background_color(s_versionTitle_text, GColorClear);
- 	text_layer_set_text(s_versionTitle_text, "Version:");
-    text_layer_set_font(s_versionTitle_text, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_text_alignment(s_versionTitle_text, GTextAlignmentCenter);
-	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_versionTitle_text));
-    
-    s_version_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+5, 140, 20));
-    text_layer_set_text_color(s_version_text, GColorBlack);
-  	text_layer_set_background_color(s_version_text, GColorClear);
- 	text_layer_set_text(s_version_text, git_version);
-    text_layer_set_font(s_version_text, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-	text_layer_set_text_alignment(s_version_text, GTextAlignmentCenter);
-	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_version_text));
-    
-    s_discordTitle_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+20, 140, 20));
-    text_layer_set_text_color(s_discordTitle_text, GColorBlack);
-  	text_layer_set_background_color(s_discordTitle_text, GColorClear);
- 	text_layer_set_text(s_discordTitle_text, "Join us!");
-    text_layer_set_font(s_discordTitle_text, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
-	text_layer_set_text_alignment(s_discordTitle_text, GTextAlignmentCenter);
-	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_discordTitle_text));
-    
-    s_discord_text = text_layer_create(GRect((bounds.size.w/2)-70, (bounds.size.h/2)+35, 140, 20));
-    text_layer_set_text_color(s_discord_text, GColorBlack);
-  	text_layer_set_background_color(s_discord_text, GColorClear);
- 	text_layer_set_text(s_discord_text, "discord.gg/aRUAYFN");
-    text_layer_set_font(s_discord_text, fonts_get_system_font(FONT_KEY_GOTHIC_18));
-	text_layer_set_text_alignment(s_discord_text, GTextAlignmentCenter);
-	layer_add_child(window_get_root_layer(window), text_layer_get_layer(s_discord_text));
+static void about_update_proc(Layer *layer, GContext *nGContext)
+{  
+	
+	GRect bounds = layer_get_unobstructed_bounds(layer);
+	graphics_context_set_text_color(nGContext, GColorBlack);
+	
+	graphics_draw_text(nGContext, "Version:", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect((bounds.size.w/2)-70, (bounds.size.h/2)-10, 140, 20),
+                               GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
+	
+	graphics_draw_text(nGContext, git_version, fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect((bounds.size.w/2)-70, (bounds.size.h/2)+5, 140, 20),
+                               GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
+	
+	graphics_draw_text(nGContext, "Join us!", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect((bounds.size.w/2)-70, (bounds.size.h/2)+20, 140, 20),
+                               GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
+	
+	graphics_draw_text(nGContext, "discord.gg/aRUAYFN", fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect((bounds.size.w/2)-70, (bounds.size.h/2)+35, 140, 20),
+                               GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
+	
+    graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_DARK), GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
+	graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_TO_MOON), GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
+	
 }
 
 static void about_window_unload(Window *window)
 {
-    gbitmap_destroy(s_rebbleLogo_bitmap);
-    bitmap_layer_destroy(s_rebbleLogoBackground_layer);
-    text_layer_destroy(s_version_text);
-    text_layer_destroy(s_discord_text);
+
 }
 
 void systemapp_init(void)
