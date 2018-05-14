@@ -135,19 +135,17 @@ static void systemapp_window_unload(Window *window)
 
 static void about_window_load(Window *window)
 {
-    //window_set_background_color(s_about_window, GColorWhite);
     
     Layer *window_layer = window_get_root_layer(s_about_window);
     GRect bounds = layer_get_bounds(window_layer);
-	
-	s_about_scroll = scroll_layer_create(bounds);
-    scroll_layer_set_click_config_onto_window(s_about_scroll, window);
     
     status_bar = status_bar_layer_create();
-    layer_add_child(window_layer, status_bar_layer_get_layer(status_bar));
     status_bar_layer_set_separator_mode(status_bar, StatusBarLayerSeparatorModeDotted);
     status_bar_layer_set_colors(status_bar, GColorRed, GColorWhite);
     status_bar_layer_set_text(status_bar, "About RebbleOS");
+    
+    s_about_scroll = scroll_layer_create(bounds);
+    scroll_layer_set_click_config_onto_window(s_about_scroll, window);
 	
 	s_aboutCanvas_layer = layer_create(bounds);
     layer_set_update_proc(s_aboutCanvas_layer, about_update_proc);
@@ -155,7 +153,8 @@ static void about_window_load(Window *window)
 	layer_mark_dirty(s_aboutCanvas_layer);
 	
 	layer_add_child(window_layer, scroll_layer_get_layer(s_about_scroll));
-   
+    layer_add_child(window_layer, status_bar_layer_get_layer(status_bar));
+
 }
 
 static void about_update_proc(Layer *layer, GContext *nGContext)
