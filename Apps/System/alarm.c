@@ -12,13 +12,13 @@
 #include "platform_config.h"
 #include "platform_res.h"
 
-extern void flash_dump(void);
-extern const char git_version[];
-
 static Window *s_main_window;
 static Menu *alarm_menu;
 
-static Window *s_about_window;
+int alarms[9]; //fight me
+int activeAlarms = 0; //seriously, fight me
+
+static Window *s_alarm_select_window;
 static Layer *s_aboutCanvas_layer;
 static ScrollLayer *s_about_scroll;
 static void about_update_proc(Layer *layer, GContext *nGContext);
@@ -32,41 +32,16 @@ typedef struct {
 
 static Time s_last_time;
 
-static MenuItems* flash_dump_item_selected(const MenuItem *item)
+static MenuItems* add_alarm_item_selected(const MenuItem *item)
 {
-    flash_dump();
-    return NULL;
+    //Open time selection menu
+	//Note: Pebble selection format is HH-MM-AM/PM
+	return NULL;
 }
 
-static MenuItems* watch_list_item_selected(const MenuItem *item);
-
-static MenuItems* app_item_selected(const MenuItem *item)
+static MenuItems* edit_alarm_item_selected(const MenuItem *item)
 {
     appmanager_app_start(item->text);
-    return NULL;
-}
-
-static MenuItems* settings_item_selected(const MenuItem *item)
-{
-    appmanager_app_start("Settings");
-    return NULL;
-}
-
-static MenuItems* run_test_item_selected(const MenuItem *item)
-{
-    appmanager_app_start("TestApp");
-    return NULL;
-}
-
-static MenuItems* notification_item_selected(const MenuItem *item)
-{
-    appmanager_app_start("Notification");
-    return NULL;
-}
-
-static MenuItems* about_item_selected(const MenuItem *item)
-{
-    window_stack_push(s_about_window, false);
     return NULL;
 }
 
@@ -112,12 +87,14 @@ static void alarmapp_window_load(Window *window)
 
     menu_set_click_config_onto_window(alarm_menu, window);
 
-    MenuItems *items = menu_items_create(5);
-    menu_items_add(items, MenuItem("+", NULL, RESOURCE_ID_CLOCK, add_timer_item_selected));
-    menu_items_add(items, MenuItem("Settings", "Config", RESOURCE_ID_SPANNER, settings_item_selected));
-    menu_items_add(items, MenuItem("Tests", NULL, RESOURCE_ID_CLOCK, run_test_item_selected));
-    menu_items_add(items, MenuItem("Notifications", NULL, RESOURCE_ID_SPEECH_BUBBLE, notification_item_selected));
-    menu_items_add(items, MenuItem("RebbleOS", "... v0.0.0.2", RESOURCE_ID_SPEECH_BUBBLE, about_item_selected));
+    MenuItems *items = menu_items_create(11);
+    menu_items_add(items, MenuItem("+", NULL, RESOURCE_ID_CLOCK, add_alarm_item_selected));
+	
+	for(int i = 0; i < activeAlarms; i++){
+		//add buffer for num to be converted to string
+		menu_items_add(items, MenuItem(ARRAY BUFF, NULL, RESOURCE_ID_SPANNER, edit_alarm_item_selected));
+	}
+	
     menu_set_items(alarm_menu, items);
 
 #ifdef PBL_RECT
@@ -134,10 +111,10 @@ static void alarmapp_window_unload(Window *window)
     menu_destroy(alarm_menu);
 }
 
-static void about_window_load(Window *window)
+static void alarm_select_window_load(Window *window)
 {
     
-    Layer *window_layer = window_get_root_layer(s_about_window);
+    Layer *window_layer = window_get_root_layer(s_alarm_select_window);
     GRect bounds = layer_get_bounds(window_layer);
     
     status_bar = status_bar_layer_create();
@@ -181,7 +158,7 @@ static void about_update_proc(Layer *layer, GContext *nGContext)
 	
 }
 
-static void about_window_unload(Window *window)
+static void alarm_select_window_unload(Window *window)
 {
 
 }
@@ -195,11 +172,11 @@ void alarmapp_init(void)
         .unload = alarmapp_window_unload,
     });
 
-    s_about_window = window_create();
+    s_alarm_select_window = window_create();
     
-    window_set_window_handlers(s_about_window, (WindowHandlers) {
-        .load = about_window_load,
-        .unload = about_window_unload,
+    window_set_window_handlers(s_alarm_select_window, (WindowHandlers) {
+        .load = alarm_select_window_load,
+        .unload = alarm_select_window_unload,
     });
     
     window_stack_push(s_main_window, true);
@@ -208,7 +185,7 @@ void alarmapp_init(void)
 void alarmapp_deinit(void)
 {
     window_destroy(s_main_window);
-    window_destroy(s_about_window);
+    window_destroy(s_alarm_select_window);
 }
 
 void alarmapp_main(void)
