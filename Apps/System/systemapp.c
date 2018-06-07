@@ -134,15 +134,26 @@ static void systemapp_window_unload(Window *window)
     menu_destroy(s_menu);
 }
 
+static void window_exit_handler(ClickRecognizerRef recognizer, void *context)
+{
+    window_stack_pop(true);  
+}
+
 static void about_window_load(Window *window)
 {
-    
     Layer *window_layer = window_get_root_layer(s_about_window);
     GRect bounds = layer_get_bounds(window_layer);
-    
+        
     status_bar = status_bar_layer_create();
     status_bar_layer_set_separator_mode(status_bar, StatusBarLayerSeparatorModeDotted);
-    status_bar_layer_set_colors(status_bar, GColorRed, GColorWhite);
+    
+    #ifdef PBL_BW
+        status_bar_layer_set_colors(status_bar, GColorBlack, GColorWhite);
+    #else
+        status_bar_layer_set_colors(status_bar, GColorRed, GColorWhite);
+    #endif
+    
+    
     status_bar_layer_set_text(status_bar, "About RebbleOS");
     
     s_about_scroll = scroll_layer_create(bounds);
@@ -153,16 +164,16 @@ static void about_window_load(Window *window)
 	scroll_layer_add_child(s_about_scroll, s_aboutCanvas_layer);	
 	layer_mark_dirty(s_aboutCanvas_layer);
 	
-	layer_add_child(window_layer, scroll_layer_get_layer(s_about_scroll));
+    layer_add_child(window_layer, scroll_layer_get_layer(s_about_scroll));
     layer_add_child(window_layer, status_bar_layer_get_layer(status_bar));
-
 }
 
 static void about_update_proc(Layer *layer, GContext *nGContext)
 {  
-	
 	GRect bounds = layer_get_unobstructed_bounds(layer);
 	graphics_context_set_text_color(nGContext, GColorBlack);
+    
+    window_single_click_subscribe(BUTTON_ID_BACK, window_exit_handler);
 	
 	graphics_draw_text(nGContext, "Version:", fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD), GRect((bounds.size.w/2)-70, (bounds.size.h/2)-10, 140, 20),
                                GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
@@ -176,14 +187,19 @@ static void about_update_proc(Layer *layer, GContext *nGContext)
 	graphics_draw_text(nGContext, "discord.gg/aRUAYFN", fonts_get_system_font(FONT_KEY_GOTHIC_18), GRect((bounds.size.w/2)-70, (bounds.size.h/2)+35, 140, 20),
                                GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, 0);
 	
-    graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_DARK), GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
-	graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_TO_MOON), GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
-	
+    #ifdef PBL_BW
+        graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_BW), GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
+        //TODO: Get black and white rocket bitmap for Classic
+        //graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_TO_MOON_BW), GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
+    #else
+        graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_REBBLE_LOGO_DARK), GRect((bounds.size.w/2)-17, (bounds.size.h/2)-63, 34, 53));
+        graphics_draw_bitmap_in_rect(nGContext, gbitmap_create_with_resource(RESOURCE_ID_TO_MOON), GRect((bounds.size.w/2)-8, (bounds.size.h/2)+60, 19, 19));
+    #endif
 }
 
 static void about_window_unload(Window *window)
 {
-
+    scroll_layer_destroy(s_about_scroll);
 }
 
 void systemapp_init(void)
