@@ -13,6 +13,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "qalloc.h"
+#include "node_list.h"
 #include <stdbool.h>
 
 // TODO     Make this dynamic. hacky 
@@ -29,8 +30,8 @@ typedef struct CoreTimer
 typedef struct AppMessage
 {
     uint8_t thread_id;
-    uint8_t message_type_id;
-    void *payload;
+    uint8_t command;
+    void *data;
 } AppMessage;
 
 typedef struct ButtonMessage
@@ -97,7 +98,7 @@ typedef struct App {
     char *name;
     ApplicationHeader *header;
     AppMainHandler main; // A shortcut to main
-    struct App *next;
+    list_node node; 
 } App;
 
 typedef struct AppTypeHeader {
@@ -125,6 +126,7 @@ typedef enum AppThreadState {
     AppThreadUnloaded,
     AppThreadLoading,
     AppThreadLoaded,
+    AppThreadRunloop,
     AppThreadUnloading,
 } AppThreadState;
 
@@ -163,10 +165,11 @@ typedef struct app_running_thread_t {
     uint8_t *heap;
     struct CoreTimer *timer_head;
     qarena_t *arena;
+    struct n_GContext *graphics_context;
 } app_running_thread;
 
 /* in appmanager.c */
-void appmanager_init(void);
+uint8_t appmanager_init(void);
 void appmanager_timer_add(CoreTimer *timer);
 void appmanager_timer_remove(CoreTimer *timer);
 void app_event_loop(void);
@@ -185,16 +188,23 @@ AppThreadType appmanager_get_thread_type(void);
 /* in appmanager_app_runloop.c */
 void appmanager_app_runloop_init(void);
 void appmanager_app_main_entry(void);
-App *app_manager_get_apps_head();
+list_head *app_manager_get_apps_head();
 void appmanager_post_button_message(ButtonMessage *bmessage);
-void appmanager_post_draw_message(void);
+void appmanager_post_draw_message(uint8_t force);
+void appmanager_post_draw_display_message(uint8_t *draw_to_display);
+
 void appmanager_app_start(char *name);
 void appmanager_app_quit(void);
+void appmanager_app_display_done(void);
+bool appmanager_is_app_shutting_down(void);
+
 void appmanager_post_generic_app_message(AppMessage *am, TickType_t timeout);
 void appmanager_timer_expired(app_running_thread *thread);
 TickType_t appmanager_timer_get_next_expiry(app_running_thread *thread);
-
 /* in appmanager_app.c */
 App *appmanager_get_app(char *app_name);
 void appmanager_app_loader_init(void);
 
+void rocky_event_loop_with_resource(uint16_t resource_id);
+
+void timer_init(void);

@@ -14,7 +14,7 @@
 #include "notification_message.h"
 
 /* internal init */
-void notification_init(void);
+uint8_t notification_init(void);
 
 /**
  * @brief Show a fullscreen message
@@ -62,7 +62,7 @@ typedef struct notification_data_t {
     OverlayCreateCallback create_callback;
     OverlayCreateCallback destroy_callback;
     OverlayWindow *overlay_window;
-    AppTimer *timer;
+    AppTimerHandle timer;
     uint32_t timeout_ms;
 } notification_data;
 

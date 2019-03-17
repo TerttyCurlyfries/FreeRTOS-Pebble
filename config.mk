@@ -67,6 +67,9 @@ SRCS_all += lib/neographics/src/common.c
 SRCS_all += lib/neographics/src/context.c
 SRCS_all += lib/neographics/src/draw_command/draw_command.c
 SRCS_all += lib/neographics/src/fonts/fonts.c
+SRCS_all += lib/neographics/src/gbitmap/gbitmap.c
+SRCS_all += lib/neographics/src/gbitmap/blit_bw.c
+SRCS_all += lib/neographics/src/gbitmap/blit_color.c
 SRCS_all += lib/neographics/src/path/path.c
 SRCS_all += lib/neographics/src/primitives/circle.c
 SRCS_all += lib/neographics/src/primitives/line.c
@@ -84,6 +87,7 @@ SRCS_all += rcore/appmanager.c
 SRCS_all += rcore/appmanager_app.c
 SRCS_all += rcore/appmanager_app_api.c
 SRCS_all += rcore/appmanager_app_runloop.c
+SRCS_all += rcore/appmanager_app_timer.c
 SRCS_all += rcore/backlight.c
 SRCS_all += rcore/bluetooth.c
 SRCS_all += rcore/buttons.c
@@ -128,6 +132,8 @@ SRCS_all += rwatch/graphics/graphics.c
 SRCS_all += rwatch/graphics/font_loader.c
 SRCS_all += rwatch/event/tick_timer_service.c
 SRCS_all += rwatch/event/app_timer.c
+SRCS_all += rwatch/event/battery_state_service.c
+SRCS_all += rwatch/event/connection_service.c
 SRCS_all += rwatch/ui/layer/status_bar_layer.c
 SRCS_all += rwatch/ui/animation/animation.c
 SRCS_all += rwatch/ui/animation/property_animation.c
@@ -150,6 +156,7 @@ include hw/chip/stm32f4xx/config.mk
 include hw/chip/stm32f2xx/config.mk
 include hw/drivers/stm32_dma/config.mk
 include hw/drivers/stm32_spi/config.mk
+include hw/drivers/stm32_i2c/config.mk
 include hw/drivers/stm32_usart/config.mk
 include hw/drivers/stm32_buttons/config.mk
 include hw/drivers/stm32_power/config.mk

@@ -15,7 +15,6 @@
 
 static list_head _window_list_head = LIST_HEAD(_window_list_head);
 
-static void _window_unload_proc(Window *window);
 static void _window_load_proc(Window *window);
 
 static bool _anim_direction_left = true;
@@ -158,7 +157,7 @@ static void _animation_setup(bool direction_left)
 {
     // Animate the window change
     Animation *animation = animation_create();
-    animation_set_duration(animation, 300);
+    animation_set_duration(animation, 1200);
     
     const AnimationImplementation implementation = {
         .setup = _push_animation_setup,
@@ -177,7 +176,7 @@ static void _animation_setup(bool direction_left)
 /*
  * Remove the top_window from the list
  */
-Window * window_stack_pop(bool animated)
+Window * window_stack_pop(const bool animated)
 {
     assert(appmanager_get_thread_type() != AppThreadOverlay 
             && "Please use overlay_window_stack_pop");
@@ -186,6 +185,20 @@ Window * window_stack_pop(bool animated)
     window_stack_remove(wind, animated);
 
     return wind;
+}
+
+void window_stack_pop_all(const bool animated)
+{
+    assert(appmanager_get_thread_type() != AppThreadOverlay 
+            && "Please use overlay_window_stack_pop_all");
+
+    Window *wind = window_stack_get_top_window();
+
+    while(wind)
+    {
+        window_stack_remove(wind, animated);
+        wind = window_stack_get_top_window();
+    }
 }
 
 /*
@@ -292,11 +305,7 @@ void window_destroy(Window *window)
     /* and now the window */
     app_free(window);
     
-
-    if (appmanager_get_thread_type() == AppThreadOverlay)
-        _count = overlay_window_count();
-    else
-        _count = window_count();  
+    _count = window_count();  
     
     if (_count == 0)
     {
@@ -356,7 +365,6 @@ void rbl_window_draw(Window *window)
     context->offset = frame;
     context->fill_color = window->background_color;
     graphics_fill_rect(context, GRect(0, 0, frame.size.w, frame.size.h), 0, GCornerNone);
-    
     layer_draw(window->root_layer, context);
 }
 
@@ -373,39 +381,25 @@ void rbl_window_draw(Window *window)
  * Display drawing is async, so if a display draw is already in progress, we 
  * also wait for that to complete.
  */
-void window_draw(void)
+bool window_draw(void)
 {
     if (appmanager_is_thread_overlay())
     {
-        return;
+        return false;
     }
     else if (appmanager_get_thread_type() != AppThreadMainApp)
     {
         SYS_LOG("window", APP_LOG_LEVEL_ERROR, "XXX Not app thread! I don't trust you to allocate memory correctly.");
         SYS_LOG("window", APP_LOG_LEVEL_ERROR, "XXX Please find the correct mechanism! (did you mean overlay_x?).");
-        return;
+        return false;
     }
-    
-    /* Make sure noone else can draw while we are drawing */
-    display_buffer_lock_take(500);
 
     Window *wind = window_stack_get_top_window();
 
-    if (wind == NULL)
-        return;
-    
-    if (wind->is_render_scheduled)
-        rbl_window_draw(wind);
-
+    rbl_window_draw(wind);
     wind->is_render_scheduled = false;
     
-    /* This will be deferred to the overlay renderer */
-    overlay_window_draw();
-    /* Now sit and wait for the overlay to signal done */
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-
-    /* Unlock the draw mutex */
-    display_buffer_lock_give();
+    return true;
 }
 
 
@@ -585,7 +579,14 @@ static void _animation_util_push_fb(GRect rect, int16_t distance)
 #  warning XXX: PBL_BW no push_fb support
     return;
 #else
-    uint8_t *fb = display_get_buffer(); 
+    /* To revisit at some later time.
+     * The issue I can't find time to fix is that pushfb happens
+     * while we are painting */
+    return;
+    
+    uint8_t *fb = display_get_buffer();
+    if (!display_buffer_lock_take(0))
+        return;
     
     if (rect.origin.x < 0) rect.origin.x = 0;
     if (rect.origin.x > DISPLAY_COLS) rect.origin.x = DISPLAY_COLS;
@@ -620,5 +621,16 @@ static void _animation_util_push_fb(GRect rect, int16_t distance)
         }
         
     }
+    display_buffer_lock_give();
 #endif
+}
+
+bool window_get_fullscreen(Window *window)
+{
+    return true;
+}
+
+void window_set_fullscreen(Window *window)
+{
+    return;
 }

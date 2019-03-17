@@ -1,62 +1,60 @@
 /* display.c
- * routines for [...]
+ * routines for drawing to a display.
  * RebbleOS
  *
  * Author: Barry Carter <barry.carter@gmail.com>
  */
+
+/* Notes
+ * 
+ * Calling display_draw starts the draw process.
+ * display_draw => until hw is done => semaphore wait on isr
+ * NOTES 
+ *   The draw is run in the caller's thread context.
+ *   This is a blocking process until a complete frame is drawn.
+ *   This must be run in the scheduler, not before.
+ *  
+ */
  
 #include "rebbleos.h"
+#include "appmanager.h"
 
-static TaskHandle_t _display_task;
-static xQueueHandle _display_queue;
-static SemaphoreHandle_t _display_mutex;
-static StaticSemaphore_t _display_mutex_buf;
+/* Semaphore to start drawing */
+static SemaphoreHandle_t _display_start_sem;
+static StaticSemaphore_t _display_start_sem_buf;
 
-static void _display_thread(void *pvParameters);
 static void _display_start_frame(uint8_t offset_x, uint8_t offset_y);
 static void _display_cmd(uint8_t cmd, char *data);
 
 /* A mutex to use for locking buffers */
-static StaticSemaphore_t _draw_mutex_mem;
+static StaticSemaphore_t _draw_mutex_buf;
 static SemaphoreHandle_t _draw_mutex;
 
-
 /*
- * Start the display driver and tasks. Show splash
+ * Start the display driver and tasks
  */
-void display_init(void)
-{   
+uint8_t display_init(void)
+{
+    _display_start_sem = xSemaphoreCreateBinaryStatic(&_display_start_sem_buf);
+    _draw_mutex        = xSemaphoreCreateMutexStatic(&_draw_mutex_buf);
+    
     hw_display_init();
-      
-    // set up the RTOS tasks
-    xTaskCreate(_display_thread, "Display", 480 / 4 + portSTACK_FUDGE_FACTOR, NULL, tskIDLE_PRIORITY + 2UL, &_display_task);
+    os_module_init_complete(0);
     
-    _display_queue = xQueueCreate(2, sizeof(uint8_t));
-    _display_mutex = xSemaphoreCreateMutexStatic(&_display_mutex_buf);
-    _draw_mutex    = xSemaphoreCreateMutexStatic(&_draw_mutex_mem);
-    
-    _display_cmd(DISPLAY_CMD_DRAW, NULL);
-    
-    KERN_LOG("Display", APP_LOG_LEVEL_INFO, "Display Tasks Created");
+    return INIT_RESP_ASYNC_WAIT;
 }
 
 /*
- * When the display driver has responded to something
- * 1) frame frame accepted
- * 2) frame completed
- * We get notified here. We can now let the prcessing complete or continue
+ * Called after the render of each row/col
+ * We then set a semaphore for the display thread to wake on
  */
-void display_done_ISR(uint8_t cmd)
+void display_done_isr(uint8_t cmd)
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-    // Notify the task that the transmission is complete.
-    vTaskNotifyGiveFromISR(_display_task, &xHigherPriorityTaskWoken);
-
-    /* If xHigherPriorityTaskWoken is now set to pdTRUE then a context switch
-    should be performed to ensure the interrupt returns directly to the highest
-    priority task.  The macro used for this purpose is dependent on the port in
-    use and may be called portEND_SWITCHING_ISR(). */
+    
+    /* Notify the task that the transmission is complete. */
+    xSemaphoreGiveFromISR(_display_start_sem, &xHigherPriorityTaskWoken);
+    
     portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
@@ -75,16 +73,7 @@ void display_reset(uint8_t enabled)
  */
 static void _display_start_frame(uint8_t xoffset, uint8_t yoffset)
 {
-    xSemaphoreTake(_display_mutex, portMAX_DELAY);
-    
     hw_display_start_frame(xoffset, yoffset);
-    
-    // block wait for the draw to finish
-    // this is invoked via the ISR
-    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    
-    // unlock the mutex
-    xSemaphoreGive(_display_mutex);
 }
 
 /*
@@ -96,67 +85,42 @@ uint8_t *display_get_buffer(void)
 }
 
 /*
- * Request a command from the display driver. 
- * Such as DISPLAY_CMD_DRAW
- */
-static void _display_cmd(uint8_t cmd, char *data)
-{
-    xQueueSendToBack(_display_queue, &cmd, 0);
-}
-
-/*
  * Queue a draw when available
+ * This function starts the draw, and then sits and waits in 
+ * a poll waiting for all frames to finish.
+ * To be called from an rtos thread only
  */
 void display_draw(void)
 {
-    _display_cmd(DISPLAY_CMD_DRAW, 0);
-}
+    uint8_t done = 0;
+    _display_start_frame(0, 0);
 
-/*
- * Main task processing for the display. Manages locking
- * state machine control and command management
- */
-static void _display_thread(void *pvParameters)
-{
-    uint8_t data;
-
-    // XXX Assume once screen is up, we are up.
-    rebbleos_set_system_status(SYSTEM_STATUS_STARTED);
-    
-    while(1)
+    /* A frame is requested. Sit and await frame draw completion */
+    while(!done)
     {
-        // commands to be executed are send to this queue and processed
-        // one at a time
-        if (xQueueReceive(_display_queue, &data, portMAX_DELAY))
-        {
-            switch(data)
-            {
-                // in the case of draw, we are going to leave locking to
-                // the outer laters. If someone calls an overlapping draw into here
-                // it's just going to fail
-                case DISPLAY_CMD_DRAW:
-                    // all we are responsible for is starting a frame draw
-                    _display_start_frame(0, 0);
-                    break;
-                case DISPLAY_CMD_DONE:
-                    break;
-            }
-        }
+        /* block wait for the draw one a single row/col to finish
+         * this is invoked via the ISR */
+        xSemaphoreTake(_display_start_sem, portMAX_DELAY);
+        done = hw_display_process_isr();
     }
 }
 
-inline bool display_buffer_lock_take(uint16_t timeout)
+inline bool display_buffer_lock_take(uint32_t timeout)
 {
-    /* If the display is currently drawing out the framebuffer, we 
-     * wait for completion before we do any drawing. */
-    xSemaphoreTake(_display_mutex, (TickType_t)timeout); //portMAX_DELAY);
-    xSemaphoreGive(_display_mutex);
-    
-    /* Now we can give the mutex out */
     return xSemaphoreTake(_draw_mutex, (TickType_t)timeout);
 }
 
 inline bool display_buffer_lock_give(void)
 {
     return xSemaphoreGive(_draw_mutex);
+}
+
+bool display_is_buffer_locked(void)
+{
+    if(xSemaphoreTake(_draw_mutex, 0))
+    {
+        xSemaphoreGive(_draw_mutex);
+        return false;
+    }
+    return true;
 }

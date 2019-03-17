@@ -27,6 +27,7 @@ void hw_display_start();
 void hw_display_start_frame(uint8_t xoffset, uint8_t yoffset);
 uint8_t hw_display_get_state();
 uint8_t *hw_display_get_buffer(void);
+uint8_t hw_display_process_isr(void);
 
 #define WATCHDOG_RESET_MS 500
 void hw_watchdog_init();
@@ -56,5 +57,8 @@ uint8_t hw_bluetooth_power_cycle(void);
 void hw_bluetooth_disable_cts_irq(void);
 void hw_bluetooth_enable_cts_irq(void);
 stm32_usart_t *hw_bluetooth_get_usart(void);
+
+void log_clock_enable(void);
+void log_clock_disable(void);
 
 #endif
