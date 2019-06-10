@@ -1,18 +1,21 @@
-# Building on Debian Stretch
+# Building on Arch Linux and It's Derivatives
 
-The following builds RebbleOS on Debian Stretch:
+The following builds RebbleOS on Arch Linux and Parabola once the Pebble SDK is installed:
 
+Note: You will need to aquire the FPGA blobs from the [discord](discord.gg/aRUAYFN) before building.
 ```sh
-    apt install -y gcc-arm-none-eabi
     git clone https://github.com/pebble-dev/RebbleOS.git
     cd FreeRTOS-Pebble
     git submodule update --init --recursive
+    virtualenv --no-site-packages .env
+    souce .env/bin/activate
     make
+    deactivate
 ```
-
+   
 The Pebble SDK is a prerequisite for portions of RebbleOS. The
 SDK is available [here](https://developer.rebble.io/developer.pebble.com/sdk/download/index.html).
-As an example, on Debian, one may create an installation
+As an example, on Arch, one may create an installation
 directory for the SDK using the following.
 
 ```sh
@@ -22,14 +25,14 @@ directory for the SDK using the following.
     tar -jxf pebble-sdk-4.5-linux64.tar.bz2
     echo 'export PATH=~/pebble-dev/pebble-sdk-4.5-linux64/bin:$PATH' >> ~/.bash_profile
     . ~/.bash_profile
-    sudo apt-get update
-    sudo apt-get install python-pip python2.7-dev python-gevent libsdl1.2debian libfdt1 libpixman-1-0 git gcc-arm-none-eabi npm
-    pip install virtualenv
-    pip install --upgrade pip
+    sudo pacman -Syyu
+    sudo pacman -S python2 python2-pip  python2-gevent sdl dtc pixman git arm-none-eabi-gcc arm-none-eabi-newlib npm
+    pip2 install virtualenv --user
+    pip2 install --upgrade pip --user
     cd ~/pebble-dev/pebble-sdk-4.5-linux64
     virtualenv --no-site-packages .env
     source .env/bin/activate
-    pip install -r requirements.txt
+    pip2 install -r requirements.txt
     deactivate
     mkdir ~/.pebble-sdk/
     touch ~/.pebble-sdk/NO_TRACKING
